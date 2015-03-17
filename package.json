@@ -1,0 +1,42 @@
+{
+  "name": "dynamo-throughput",
+  "version": "0.0.1",
+  "description": "Set and reset DynamoDB provisioned throughput",
+  "main": "index.js",
+  "scripts": {
+    "pretest": "retire -p && jshint test index.js && jscs test index.js",
+    "test": "tape test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mapbox/dynamo-throughput.git"
+  },
+  "keywords": [
+    "dynamodb",
+    "throughput",
+    "provisioning"
+  ],
+  "author": "Mapbox",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.1.17"
+  },
+  "devDependencies": {
+    "dynalite": "^0.9.0",
+    "jscs": "^1.11.3",
+    "jshint": "^2.6.3",
+    "queue-async": "^1.0.7",
+    "retire": "*",
+    "tape": "^3.5.0",
+    "underscore": "^1.8.2"
+  },
+  "jscsConfig": {
+    "preset": "airbnb"
+  },
+  "jshintConfig": {
+    "node": true,
+    "undef": true,
+    "unused": true,
+    "noarg": true
+  }
+}
