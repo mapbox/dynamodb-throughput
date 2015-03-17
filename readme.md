@@ -1,4 +1,4 @@
-# dynamo-throughput
+# dynamodb-throughput
 
 [![Build Status](https://travis-ci.org/mapbox/dynamodb-throughput.svg?branch=master)](https://travis-ci.org/mapbox/dynamodb-throughput)
 

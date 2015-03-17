@@ -83,7 +83,7 @@ function test(name, callback) {
   });
 }
 
-test('dynamo-throughput', function(assert) {
+test('dynamodb-throughput', function(assert) {
   var throughput = require('..')(testTable.TableName, 'fake');
 
   queue(1)
