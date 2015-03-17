@@ -2,18 +2,21 @@ var AWS = require('aws-sdk');
 var DynamoDB = AWS.DynamoDB;
 var queue = require('queue-async');
 var _ = require('underscore');
+var crypto = require('crypto');
 
-AWS.DynamoDB = function(options) {
-  options.endpoint = 'http://localhost:4567';
-  options.accessKeyId = 'fake';
-  options.secretAccessKey = 'fake';
-  options.region = 'fake';
+if (!process.env.LIVE_TEST) {
+  AWS.DynamoDB = function(options) {
+    options.endpoint = 'http://localhost:4567';
+    options.accessKeyId = 'fake';
+    options.secretAccessKey = 'fake';
+    options.region = 'fake';
 
-  _(this).extend(new DynamoDB(options));
-};
+    _(this).extend(new DynamoDB(options));
+  };
+}
 
 var testTable = {
-  TableName: 'test',
+  TableName: 'dynamodb-throughput-test-' + crypto.randomBytes(4).toString('hex'),
   AttributeDefinitions: [
     {
       AttributeName: 'id',
@@ -39,7 +42,7 @@ var testTable = {
       IndexName: 'test-index',
       KeySchema: [
         {
-          AttributeName: 'id',
+          AttributeName: 'other',
           KeyType: 'HASH'
         }
       ],
@@ -55,11 +58,11 @@ var testTable = {
 };
 
 var tape = require('tape');
-var dynamo = new AWS.DynamoDB({});
+var dynamo = new AWS.DynamoDB({ region: 'us-east-1' });
 var dynalite = require('dynalite')({
   createTableMs: 0,
   deleteTableMs: 0,
-  updateTableMs: 0
+  updateTableMs: 2000
 });
 
 function test(name, callback) {
@@ -72,7 +75,19 @@ function test(name, callback) {
   tape('create table', function(assert) {
     dynamo.createTable(testTable, function(err) {
       if (err) throw err;
-      assert.end();
+      setTimeout(check, 1000);
+
+      function check() {
+        dynamo.describeTable({TableName: testTable.TableName}, function(err, data) {
+          if (err) throw err;
+          var active = data.Table.GlobalSecondaryIndexes.reduce(function(active, index) {
+            if (index.IndexStatus !== 'ACTIVE') active = false;
+            return active;
+          }, data.Table.TableStatus === 'ACTIVE');
+          if (active) return assert.end();
+          setTimeout(check, 1000);
+        });
+      }
     });
   });
   tape(name, callback);
@@ -84,7 +99,7 @@ function test(name, callback) {
 }
 
 test('dynamodb-throughput', function(assert) {
-  var throughput = require('..')(testTable.TableName, 'fake');
+  var throughput = require('..')(testTable.TableName, 'us-east-1');
 
   queue(1)
     .defer(throughput.setCapacity, { read: 100, write: 1000 })
@@ -141,13 +156,13 @@ test('dynamodb-throughput', function(assert) {
         assert.equal(
           data.Table.GlobalSecondaryIndexes[0].ProvisionedThroughput.ReadCapacityUnits,
           100,
-          'resets index read capacity'
+          'sets index read capacity'
         );
 
         assert.equal(
           data.Table.GlobalSecondaryIndexes[0].ProvisionedThroughput.WriteCapacityUnits,
           1000,
-          'resets index write capacity'
+          'sets index write capacity'
         );
 
         next();
@@ -175,6 +190,7 @@ test('dynamodb-throughput', function(assert) {
         next();
       });
     })
+    .defer(dynamo.deleteTable.bind(dynamo), { TableName: testTable.TableName })
     .awaitAll(function(err) {
       if (err) throw err;
       assert.end();

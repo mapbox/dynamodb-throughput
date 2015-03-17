@@ -10,8 +10,20 @@ module.exports = function(tableName, region) {
     var dynamo = new AWS.DynamoDB({ region: region });
     dynamo.updateTable(update, function(err) {
       if (err) return callback(err);
-      callback();
+      setTimeout(check, 1000);
     });
+
+    function check() {
+      dynamo.describeTable({TableName: tableName}, function(err, data) {
+        if (err) return callback(err);
+        var active = data.Table.GlobalSecondaryIndexes.reduce(function(active, index) {
+          if (index.IndexStatus !== 'ACTIVE') active = false;
+          return active;
+        }, data.Table.TableStatus === 'ACTIVE');
+        if (active) return callback();
+        setTimeout(check, 1000);
+      });
+    }
   }
 
   function describeTable(callback) {
