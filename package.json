@@ -1,5 +1,5 @@
 {
-  "name": "dynamo-throughput",
+  "name": "dynamodb-throughput",
   "version": "0.0.1",
   "description": "Set and reset DynamoDB provisioned throughput",
   "main": "index.js",
@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mapbox/dynamo-throughput.git"
+    "url": "https://github.com/mapbox/dynamodb-throughput.git"
   },
   "keywords": [
     "dynamodb",
