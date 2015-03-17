@@ -80,7 +80,8 @@ function test(name, callback) {
       function check() {
         dynamo.describeTable({TableName: testTable.TableName}, function(err, data) {
           if (err) throw err;
-          var active = data.Table.GlobalSecondaryIndexes.reduce(function(active, index) {
+          var gsis = data.Table.GlobalSecondaryIndexes || [];
+          var active = gsis.reduce(function(active, index) {
             if (index.IndexStatus !== 'ACTIVE') active = false;
             return active;
           }, data.Table.TableStatus === 'ACTIVE');
@@ -187,6 +188,72 @@ test('dynamodb-throughput', function(assert) {
           'resets index write capacity'
         );
 
+        next();
+      });
+    })
+    .defer(dynamo.deleteTable.bind(dynamo), { TableName: testTable.TableName })
+    .awaitAll(function(err) {
+      if (err) throw err;
+      // prep for the next round of tests :(
+      delete testTable.GlobalSecondaryIndexes;
+      testTable.AttributeDefinitions = testTable.AttributeDefinitions.slice(0, 1);
+      testTable.TableName = 'dynamodb-throughput-test-' + crypto.randomBytes(4).toString('hex');
+      assert.end();
+    });
+});
+
+test('dynamodb-throughput (table without indexes)', function(assert) {
+  var throughput = require('..')(testTable.TableName, 'us-east-1');
+
+  queue(1)
+    .defer(throughput.setCapacity, { read: 100, write: 1000 })
+    .defer(function(next) {
+      dynamo.describeTable({
+        TableName: testTable.TableName
+      }, function(err, data) {
+        if (err) return next(err);
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.ReadCapacityUnits,
+          100,
+          'sets main read capacity'
+        );
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.WriteCapacityUnits,
+          1000,
+          'sets main write capacity'
+        );
+
+        next();
+      });
+    })
+    .defer(throughput.resetCapacity)
+    .defer(function(next) {
+      dynamo.describeTable({
+        TableName: testTable.TableName
+      }, function(err, data) {
+        if (err) return next(err);
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.ReadCapacityUnits,
+          1,
+          'resets main read capacity'
+        );
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.WriteCapacityUnits,
+          1,
+          'resets main write capacity'
+        );
+
+        next();
+      });
+    })
+    .defer(function(next) {
+      throughput.setIndexCapacity('test-index', { read: 100, write: 1000 }, function(err) {
+        assert.ok(err, 'errors when setting index capacity on non-existent index');
+        assert.equal(err.message, 'Invalid indexName: test-index', 'proper error message when setting index capacity on non-existent index');
         next();
       });
     })

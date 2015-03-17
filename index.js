@@ -16,7 +16,8 @@ module.exports = function(tableName, region) {
     function check() {
       dynamo.describeTable({TableName: tableName}, function(err, data) {
         if (err) return callback(err);
-        var active = data.Table.GlobalSecondaryIndexes.reduce(function(active, index) {
+        var gsis = data.Table.GlobalSecondaryIndexes || [];
+        var active = gsis.reduce(function(active, index) {
           if (index.IndexStatus !== 'ACTIVE') active = false;
           return active;
         }, data.Table.TableStatus === 'ACTIVE');
@@ -36,7 +37,8 @@ module.exports = function(tableName, region) {
         write: data.Table.ProvisionedThroughput.WriteCapacityUnits
       };
 
-      var indexes = data.Table.GlobalSecondaryIndexes.reduce(function(indexes, index) {
+      var gsis = data.Table.GlobalSecondaryIndexes || [];
+      var indexes = gsis.reduce(function(indexes, index) {
         indexes[index.IndexName] = {
           read: index.ProvisionedThroughput.ReadCapacityUnits,
           write: index.ProvisionedThroughput.WriteCapacityUnits
