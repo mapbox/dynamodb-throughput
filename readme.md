@@ -9,7 +9,7 @@ Set and reset provisioned DynamoDB throughput
 You can set the table's read and write capacities to perform some operation that requires a lot of throughput. After you're done, you can reset the provisioned throughput to prior levels.
 
 ```js
-var throughput = require('dynamodb-throughput')('my-table', 'us-east-1');
+var throughput = require('dynamodb-throughput')('my-table', { region: 'us-east-1' });
 var queue = require('queue-async');
 
 queue(1)
@@ -24,7 +24,7 @@ queue(1)
 It also works on GlobalSecondaryIndexes.
 
 ```js
-var throughput = require('dynamodb-throughput')('my-table', 'us-east-1');
+var throughput = require('dynamodb-throughput')('my-table', { region: 'us-east-1' });
 var queue = require('queue-async');
 
 queue(1)
@@ -35,3 +35,5 @@ queue(1)
     console.log(err || 'All done!');
   });
 ```
+
+The second argument when creating the throughput object (`{ region: 'us-east-1' }` in these examples) is an options object passed to [`new AWS.DynamoDB(options)`](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB.html#constructor-property) to communicate with DynamoDB. Usually you should only need to provide a `region` property.

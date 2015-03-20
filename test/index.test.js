@@ -100,7 +100,7 @@ function test(name, callback) {
 }
 
 test('dynamodb-throughput', function(assert) {
-  var throughput = require('..')(testTable.TableName, 'us-east-1');
+  var throughput = require('..')(testTable.TableName, { region: 'us-east-1' });
 
   queue(1)
     .defer(throughput.setCapacity, { read: 100, write: 1000 })
@@ -203,7 +203,7 @@ test('dynamodb-throughput', function(assert) {
 });
 
 test('dynamodb-throughput (table without indexes)', function(assert) {
-  var throughput = require('..')(testTable.TableName, 'us-east-1');
+  var throughput = require('..')(testTable.TableName, { region: 'us-east-1' });
 
   queue(1)
     .defer(throughput.setCapacity, { read: 100, write: 1000 })

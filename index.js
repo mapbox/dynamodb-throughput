@@ -1,14 +1,16 @@
 var AWS = require('aws-sdk');
 
-module.exports = function(tableName, region) {
+module.exports = function(tableName, dynamoOptions) {
   var cache = {
     main: {},
     indexes: {}
   };
 
   function updateTable(update, callback) {
-    var dynamo = new AWS.DynamoDB({ region: region });
+    var dynamo = new AWS.DynamoDB(dynamoOptions);
     dynamo.updateTable(update, function(err) {
+      if (err && err.code === 'ValidationException' && /The requested value equals the current value/.test(err.message))
+        return callback();
       if (err) return callback(err);
       setTimeout(check, 1000);
     });
@@ -28,7 +30,7 @@ module.exports = function(tableName, region) {
   }
 
   function describeTable(callback) {
-    var dynamo = new AWS.DynamoDB({ region: region });
+    var dynamo = new AWS.DynamoDB(dynamoOptions);
     dynamo.describeTable({ TableName: tableName }, function(err, data) {
       if (err) return callback(err);
 
@@ -53,6 +55,8 @@ module.exports = function(tableName, region) {
   return {
     setCapacity: function(capacity, callback) {
       describeTable(function(err, main) {
+        if (err) return callback(err);
+
         cache.main.read = main.read;
         cache.main.write = main.write;
 
@@ -69,6 +73,8 @@ module.exports = function(tableName, region) {
 
     setIndexCapacity: function(indexName, capacity, callback) {
       describeTable(function(err, main, indexes) {
+        if (err) return callback(err);
+
         if (!(indexName in indexes))
           return callback(new Error('Invalid indexName: ' + indexName));
 
