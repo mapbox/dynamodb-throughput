@@ -191,6 +191,190 @@ test('dynamodb-throughput', function(assert) {
         next();
       });
     })
+    .defer(throughput.adjustCapacity, { read: 500, write: 400 })
+    .defer(function(next) {
+      dynamo.describeTable({
+        TableName: testTable.TableName
+      }, function(err, data) {
+        if (err) return next(err);
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.ReadCapacityUnits,
+          501,
+          'adjusts main read capacity'
+        );
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.WriteCapacityUnits,
+          401,
+          'adjusts main write capacity'
+        );
+
+        next();
+      });
+    })
+    .defer(throughput.resetCapacity)
+    .defer(function(next) {
+      dynamo.describeTable({
+        TableName: testTable.TableName
+      }, function(err, data) {
+        if (err) return next(err);
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.ReadCapacityUnits,
+          1,
+          'resets main read capacity'
+        );
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.WriteCapacityUnits,
+          1,
+          'resets main write capacity'
+        );
+
+        next();
+      });
+    })
+    .defer(throughput.adjustIndexCapacity, 'test-index', { read: 500, write: 400 })
+    .defer(function(next) {
+      dynamo.describeTable({
+        TableName: testTable.TableName
+      }, function(err, data) {
+        if (err) return next(err);
+
+        assert.equal(
+          data.Table.GlobalSecondaryIndexes[0].ProvisionedThroughput.ReadCapacityUnits,
+          501,
+          'sets index read capacity'
+        );
+
+        assert.equal(
+          data.Table.GlobalSecondaryIndexes[0].ProvisionedThroughput.WriteCapacityUnits,
+          401,
+          'sets index write capacity'
+        );
+
+        next();
+      });
+    })
+    .defer(throughput.resetIndexCapacity, 'test-index')
+    .defer(function(next) {
+      dynamo.describeTable({
+        TableName: testTable.TableName
+      }, function(err, data) {
+        if (err) return next(err);
+
+        assert.equal(
+          data.Table.GlobalSecondaryIndexes[0].ProvisionedThroughput.ReadCapacityUnits,
+          1,
+          'resets index read capacity'
+        );
+
+        assert.equal(
+          data.Table.GlobalSecondaryIndexes[0].ProvisionedThroughput.WriteCapacityUnits,
+          1,
+          'resets index write capacity'
+        );
+
+        next();
+      });
+    })
+    .defer(throughput.setCapacity, { read: 7, write: 8 })
+    .defer(throughput.setCapacity, { read: 12, write: 3 })
+    .defer(throughput.resetCapacity)
+    .defer(function(next) {
+      dynamo.describeTable({
+        TableName: testTable.TableName
+      }, function(err, data) {
+        if (err) return next(err);
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.ReadCapacityUnits,
+          1,
+          'resets main read capacity to original value after multiple setCapacity calls'
+        );
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.WriteCapacityUnits,
+          1,
+          'resets main write capacity to original value after multiple setCapacity calls'
+        );
+
+        next();
+      });
+    })
+    .defer(throughput.adjustCapacity, { read: 7, write: 8 })
+    .defer(throughput.adjustCapacity, { read: 12, write: 3 })
+    .defer(throughput.resetCapacity)
+    .defer(function(next) {
+      dynamo.describeTable({
+        TableName: testTable.TableName
+      }, function(err, data) {
+        if (err) return next(err);
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.ReadCapacityUnits,
+          1,
+          'resets main read capacity to original value after multiple adjustCapacity calls'
+        );
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.WriteCapacityUnits,
+          1,
+          'resets main write capacity to original value after multiple adjustCapacity calls'
+        );
+
+        next();
+      });
+    })
+    .defer(throughput.setIndexCapacity, 'test-index', { read: 7, write: 8 })
+    .defer(throughput.setIndexCapacity, 'test-index', { read: 12, write: 3 })
+    .defer(throughput.resetCapacity)
+    .defer(function(next) {
+      dynamo.describeTable({
+        TableName: testTable.TableName
+      }, function(err, data) {
+        if (err) return next(err);
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.ReadCapacityUnits,
+          1,
+          'resets main read capacity to original value after multiple setIndexCapacity calls'
+        );
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.WriteCapacityUnits,
+          1,
+          'resets main write capacity to original value after multiple setIndexCapacity calls'
+        );
+
+        next();
+      });
+    })
+    .defer(throughput.adjustIndexCapacity, 'test-index', { read: 7, write: 8 })
+    .defer(throughput.adjustIndexCapacity, 'test-index', { read: 12, write: 3 })
+    .defer(throughput.resetCapacity)
+    .defer(function(next) {
+      dynamo.describeTable({
+        TableName: testTable.TableName
+      }, function(err, data) {
+        if (err) return next(err);
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.ReadCapacityUnits,
+          1,
+          'resets main read capacity to original value after multiple adjustIndexCapacity calls'
+        );
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.WriteCapacityUnits,
+          1,
+          'resets main write capacity to original value after multiple adjustIndexCapacity calls'
+        );
+
+        next();
+      });
+    })
     .defer(dynamo.deleteTable.bind(dynamo), { TableName: testTable.TableName })
     .awaitAll(function(err) {
       if (err) throw err;
@@ -223,6 +407,50 @@ test('dynamodb-throughput (table without indexes)', function(assert) {
           data.Table.ProvisionedThroughput.WriteCapacityUnits,
           1000,
           'sets main write capacity'
+        );
+
+        next();
+      });
+    })
+    .defer(throughput.resetCapacity)
+    .defer(function(next) {
+      dynamo.describeTable({
+        TableName: testTable.TableName
+      }, function(err, data) {
+        if (err) return next(err);
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.ReadCapacityUnits,
+          1,
+          'resets main read capacity'
+        );
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.WriteCapacityUnits,
+          1,
+          'resets main write capacity'
+        );
+
+        next();
+      });
+    })
+    .defer(throughput.adjustCapacity, { read: 500, write: 400 })
+    .defer(function(next) {
+      dynamo.describeTable({
+        TableName: testTable.TableName
+      }, function(err, data) {
+        if (err) return next(err);
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.ReadCapacityUnits,
+          501,
+          'adjusts main read capacity'
+        );
+
+        assert.equal(
+          data.Table.ProvisionedThroughput.WriteCapacityUnits,
+          401,
+          'adjusts main write capacity'
         );
 
         next();
