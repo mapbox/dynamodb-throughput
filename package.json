@@ -4,7 +4,7 @@
   "description": "Set and reset DynamoDB provisioned throughput",
   "main": "index.js",
   "scripts": {
-    "pretest": "retire -p && jshint test index.js && jscs test index.js",
+    "pretest": "jshint test index.js && jscs test index.js",
     "test": "tape test/*.test.js"
   },
   "repository": {
@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "dynalite": "^0.9.0",
-    "jscs": "^1.11.3",
+    "jscs": "1.11.3",
     "jshint": "^2.6.3",
     "queue-async": "^1.0.7",
     "retire": "*",
