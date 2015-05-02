@@ -52,39 +52,61 @@ module.exports = function(tableName, dynamoOptions) {
     });
   }
 
-  return {
+  var throughput = {
     setCapacity: function(capacity, callback) {
+      if (cache.main.read && cache.main.write) return update();
+
       describeTable(function(err, main) {
         if (err) return callback(err);
 
         cache.main.read = main.read;
         cache.main.write = main.write;
 
-        var update = {
+        update();
+      });
+
+      function update() {
+        var params = {
           TableName: tableName,
           ProvisionedThroughput: {
-            ReadCapacityUnits: capacity.read || main.read,
-            WriteCapacityUnits: capacity.write || main.write
+            ReadCapacityUnits: capacity.read || cache.main.read,
+            WriteCapacityUnits: capacity.write || cache.main.write
           }
         };
-        updateTable(update, callback);
+        updateTable(params, callback);
+      }
+    },
+
+    adjustCapacity: function(adjustment, callback) {
+      describeTable(function(err, main) {
+        var capacity = {
+          read: main.read + adjustment.read,
+          write: main.write + adjustment.write
+        };
+
+        throughput.setCapacity(capacity, callback);
       });
     },
 
     setIndexCapacity: function(indexName, capacity, callback) {
+      var index = cache.indexes[indexName];
+      if (!index) index = cache.indexes[indexName] = {};
+      if (index.read && index.write) return update();
+
       describeTable(function(err, main, indexes) {
         if (err) return callback(err);
 
         if (!(indexName in indexes))
           return callback(new Error('Invalid indexName: ' + indexName));
 
-        var index = cache.indexes[indexName];
-        if (!index) index = cache.indexes[indexName] = {};
-
         index.read = indexes[indexName].read;
         index.write = indexes[indexName].write;
 
-        var update = {
+        update();
+      });
+
+      function update() {
+        var params = {
           TableName: tableName,
           GlobalSecondaryIndexUpdates: [
             {
@@ -98,7 +120,22 @@ module.exports = function(tableName, dynamoOptions) {
             }
           ]
         };
-        updateTable(update, callback);
+        updateTable(params, callback);
+      }
+    },
+
+    adjustIndexCapacity: function(indexName, adjustment, callback) {
+      describeTable(function(err, main, indexes) {
+        if (err) return callback(err);
+        if (!(indexName in indexes))
+          return callback(new Error('Invalid indexName: ' + indexName));
+
+        var capacity = {
+          read: indexes[indexName].read + adjustment.read,
+          write: indexes[indexName].write + adjustment.write
+        };
+
+        throughput.setIndexCapacity(indexName, capacity, callback);
       });
     },
 
@@ -135,4 +172,6 @@ module.exports = function(tableName, dynamoOptions) {
       updateTable(update, callback);
     }
   };
+
+  return throughput;
 };
