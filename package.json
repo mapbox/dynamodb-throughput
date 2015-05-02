@@ -1,6 +1,6 @@
 {
   "name": "dynamodb-throughput",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "description": "Set and reset DynamoDB provisioned throughput",
   "main": "index.js",
   "scripts": {
