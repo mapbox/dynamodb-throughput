@@ -62,7 +62,7 @@ var dynamo = new AWS.DynamoDB({ region: 'us-east-1' });
 var dynalite = require('dynalite')({
   createTableMs: 0,
   deleteTableMs: 0,
-  updateTableMs: 2000
+  updateTableMs: 0
 });
 
 function test(name, callback) {
@@ -98,6 +98,72 @@ function test(name, callback) {
     });
   });
 }
+
+test('throughput info', function(assert) {
+  var throughput = require('..')(testTable.TableName, { region: 'us-east-1' });
+
+  queue(1)
+    .defer(function(next) {
+      throughput.tableInfo(function(err, info) {
+        assert.ifError(err, 'tableInfo success');
+        assert.deepEqual(info, {
+          main: {
+            read: 1,
+            write: 1,
+            size: 0,
+            partitions: 1
+          },
+          indexes: {
+            'test-index': {
+              read: 1,
+              write: 1,
+              size: 0,
+              partitions: 1
+            }
+          }
+        }, 'tableInfo expected info');
+        next();
+      });
+    })
+    .defer(function(next) {
+      var adj = {
+        main: { read: 6001 },
+        indexes: { 'test-index': { read: 6001 } }
+      };
+
+      throughput.adjustedTableInfo(adj, function(err, info, warn) {
+        assert.ifError(err, 'adjustedTableInfo success');
+        assert.deepEqual(info, {
+          main: {
+            read: 6001,
+            write: 1,
+            size: 0,
+            partitions: 3
+          },
+          indexes: {
+            'test-index': {
+              read: 6001,
+              write: 1,
+              size: 0,
+              partitions: 3
+            }
+          }
+        }, 'adjustedTableInfo expected info');
+        assert.deepEqual(warn, {
+          main: true,
+          indexes: { 'test-index': true }
+        }, 'adjustedTableInfo expected warnings');
+        next();
+      });
+    })
+    .defer(dynamo.deleteTable.bind(dynamo), { TableName: testTable.TableName })
+    .awaitAll(function(err) {
+      if (err) throw err;
+      setTimeout(function() {
+        assert.end();
+      }, 1000);
+    });
+});
 
 test('dynamodb-throughput', function(assert) {
   var throughput = require('..')(testTable.TableName, { region: 'us-east-1' });

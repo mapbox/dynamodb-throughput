@@ -7,6 +7,10 @@
     "pretest": "jshint test index.js && jscs test index.js",
     "test": "tape test/*.test.js"
   },
+  "bin": {
+    "dynamodb-throughput-info": "bin/dynamodb-throughput-info.js",
+    "dynamodb-throughput-adjustment": "bin/dynamodb-throughput-adjustment.js"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/mapbox/dynamodb-throughput.git"
@@ -19,15 +23,16 @@
   "author": "Mapbox",
   "license": "ISC",
   "dependencies": {
-    "aws-sdk": "^2.1.17"
+    "aws-sdk": "^2.1.17",
+    "minimist": "^1.1.1"
   },
   "devDependencies": {
-    "dynalite": "^0.9.0",
+    "dynalite": "^0.12.0",
     "jscs": "1.11.3",
     "jshint": "^2.6.3",
     "queue-async": "^1.0.7",
     "retire": "*",
-    "tape": "^3.5.0",
+    "tape": "^4.0.0",
     "underscore": "^1.8.2"
   },
   "jscsConfig": {

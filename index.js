@@ -6,6 +6,14 @@ module.exports = function(tableName, dynamoOptions) {
     indexes: {}
   };
 
+  function partitions(indexInfo) {
+    var read = indexInfo.read / 3000;
+    var write = indexInfo.write / 1000;
+    var throughput = Math.ceil(read + write);
+    var size = Math.ceil(indexInfo.size / (10 * 1000 * 1000 * 1000));
+    return Math.max(throughput, size);
+  }
+
   function updateTable(update, callback) {
     var dynamo = new AWS.DynamoDB(dynamoOptions);
     dynamo.updateTable(update, function(err) {
@@ -36,15 +44,21 @@ module.exports = function(tableName, dynamoOptions) {
 
       var main = {
         read: data.Table.ProvisionedThroughput.ReadCapacityUnits,
-        write: data.Table.ProvisionedThroughput.WriteCapacityUnits
+        write: data.Table.ProvisionedThroughput.WriteCapacityUnits,
+        size: data.Table.TableSizeBytes
       };
+
+      main.partitions = partitions(main);
 
       var gsis = data.Table.GlobalSecondaryIndexes || [];
       var indexes = gsis.reduce(function(indexes, index) {
         indexes[index.IndexName] = {
           read: index.ProvisionedThroughput.ReadCapacityUnits,
-          write: index.ProvisionedThroughput.WriteCapacityUnits
+          write: index.ProvisionedThroughput.WriteCapacityUnits,
+          size: index.IndexSizeBytes
         };
+
+        indexes[index.IndexName].partitions = partitions(indexes[index.IndexName]);
 
         return indexes;
       }, {});
@@ -53,6 +67,56 @@ module.exports = function(tableName, dynamoOptions) {
   }
 
   var throughput = {
+    tableInfo: function(callback) {
+      describeTable(function(err, main, indexes) {
+        if (err) return callback(err);
+        callback(null, {
+          main: main,
+          indexes: indexes
+        });
+      });
+    },
+
+    adjustedTableInfo: function(adjustment, callback) {
+      describeTable(function(err, main, indexes) {
+        if (err) return callback(err);
+
+        var warnings = { indexes: {} };
+
+        var newMain = !adjustment.main ? main : {
+          read: adjustment.main.read || main.read,
+          write: adjustment.main.write || main.write,
+          size: main.size
+        };
+
+        newMain.partitions = partitions(newMain);
+
+        if (newMain.partitions > main.partitions)
+          warnings.main = true;
+
+        var newIndexes = Object.keys(indexes).reduce(function(newIndexes, index) {
+          var newIndex = (!adjustment.indexes || !adjustment.indexes[index]) ? indexes[index] : {
+            read: adjustment.indexes[index].read || indexes[index].read,
+            write: adjustment.indexes[index].write || indexes[index].write,
+            size: indexes[index].size
+          };
+
+          newIndex.partitions = partitions(newIndex);
+
+          if (newIndex.partitions > indexes[index].partitions)
+            warnings.indexes[index] = true;
+
+          newIndexes[index] = newIndex;
+          return newIndexes;
+        }, {});
+
+        callback(null, {
+          main: newMain,
+          indexes: newIndexes
+        }, warnings);
+      });
+    },
+
     setCapacity: function(capacity, callback) {
       if (cache.main.read && cache.main.write) return update();
 
