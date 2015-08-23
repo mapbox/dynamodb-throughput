@@ -1,4 +1,5 @@
 var AWS = require('aws-sdk');
+var async = require('queue-async');
 
 module.exports = function(tableName, dynamoOptions) {
   var cache = {
@@ -66,6 +67,46 @@ module.exports = function(tableName, dynamoOptions) {
     });
   }
 
+  function describePartitions(callback) {
+    var streams = new AWS.DynamoDBStreams({ region: dynamoOptions.region });
+    streams.listStreams({ TableName: tableName }, function(err, data) {
+      if (err) return callback(err);
+      if (!data.Streams[0]) return callback(new Error('Must enable DynamoDB Streams to count partitions'));
+
+      var arn = data.Streams[0].StreamArn;
+      streams.describeStream({ StreamArn: arn }, function(err, data) {
+        if (err) return callback(err);
+
+        var shards = data.StreamDescription.Shards;
+        var queue = async();
+
+        shards.forEach(function(shard) {
+          queue.defer(function(next) {
+            streams.getShardIterator({
+              ShardId: shard.ShardId,
+              ShardIteratorType: 'LATEST',
+              StreamArn: arn
+            }, function(err, data) {
+              if (err) return next(err);
+
+              streams.getRecords({
+                ShardIterator: data.ShardIterator
+              }, function(err, data) {
+                if (err) return next(err);
+                next(null, data.Records.length || 'NextShardIterator' in data ? 1 : 0);
+              });
+            });
+          });
+        });
+
+        queue.awaitAll(function(err, results) {
+          if (err) return callback(err);
+          callback(null, results.reduce(function(count, num) { count += num; return count; }, 0));
+        });
+      });
+    });
+  }
+
   var throughput = {
     tableInfo: function(callback) {
       describeTable(function(err, main, indexes) {
@@ -116,6 +157,8 @@ module.exports = function(tableName, dynamoOptions) {
         }, warnings);
       });
     },
+
+    partitionCount: describePartitions,
 
     setCapacity: function(capacity, callback) {
       if (cache.main.read && cache.main.write) return update();
