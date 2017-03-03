@@ -9,7 +9,8 @@
   },
   "bin": {
     "dynamodb-throughput-info": "bin/dynamodb-throughput-info.js",
-    "dynamodb-throughput-adjustment": "bin/dynamodb-throughput-adjustment.js"
+    "dynamodb-throughput-adjustment": "bin/dynamodb-throughput-adjustment.js",
+    "dynamodb-partition-count": "bin/dynamodb-partition-count.js"
   },
   "repository": {
     "type": "git",
@@ -23,8 +24,9 @@
   "author": "Mapbox",
   "license": "ISC",
   "dependencies": {
-    "aws-sdk": "^2.1.17",
-    "minimist": "^1.1.1"
+    "aws-sdk": "^2.1.46",
+    "minimist": "^1.1.1",
+    "queue-async": "^1.0.7"
   },
   "devDependencies": {
     "dynalite": "^0.12.0",
